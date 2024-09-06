@@ -22,15 +22,31 @@ async function scrapeAllPages() {
     let pageData = await page.evaluate(() => {
       let articles = [];
       document
-        .querySelectorAll("[data-el='bic-c-news-big']")
+        .querySelectorAll(
+          "#bic-main-content > div.flex.flex-wrap.-mx-3.lg:mx-0.lg:justify-between > div:nth-child(1)"
+        )
         .forEach((article) => {
-          let link = article.querySelector("a")?.href;
-          let img = article.querySelector("img")?.srcset;
-          let title = article.querySelector("h5 a")?.textContent.trim();
+          let link = article.querySelector(
+            "div.shrink-0.rounded-lg.md:rounded-xl.mb-2.5.md:mb-3.max-w-full.overflow-hidden > a"
+          )?.href;
+          let img = article.querySelector(
+            "div.shrink-0.rounded-lg.md:rounded-xl.mb-2.5.md:mb-3.max-w-full.overflow-hidden > a > img"
+          )?.srcset;
+          let title = article
+            .querySelector(
+              "div.flex.flex-col.justify-between.w-full.lg:h-full > h5 > a"
+            )
+            ?.textContent.trim();
           let category = article
-            .querySelector("a>span")
+            .querySelector(
+              "div.flex.flex-col.justify-between.w-full.lg:h-full > div.flex.flex-wrap.gap-x-2.gap-y-0.5.text-dark-grey-700.p4.mb-1.gap-x-3 > a.whitespace-nowrap.hover:underline.dark:text-white > span"
+            )
             ?.textContent.trim(); // Updated to target the first category link
-          let date = article.querySelector("time.ago")?.textContent.trim(); // Updated to target the date in the 'time.ago' element
+          let date = article
+            .querySelector(
+              "div.flex.flex-col.justify-between.w-full.lg:h-full > div.flex.items-center.text-grey-700.[.dark_&]:text-white.p5.gap-x-4 > time.ago.whitespace-nowrap"
+            )
+            ?.textContent.trim(); // Updated to target the date in the 'time.ago' element
 
           articles.push({
             title: title || "No title",

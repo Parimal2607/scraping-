@@ -1,54 +1,134 @@
-const puppeteer = require("puppeteer");
+const puppeteer = require("puppeteer-extra");
+const StealthPlugin = require("puppeteer-extra-plugin-stealth");
+puppeteer.use(StealthPlugin());
 const fs = require("fs"); // Import fs package
-const { v4: uuidv4 } = require("uuid"); // Import uuid package
+
+function delay(time) {
+  return new Promise(function (resolve) {
+    setTimeout(resolve, time);
+  });
+}
+
+// due to security issue
 
 async function scrapeAllPages() {
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({
+    headless: false,
+    executablePath:
+      "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  });
   const page = await browser.newPage();
-
-  const url = "https://www.coindesk.com/";
+  const url = "https://www.coindesk.com/livewire/";
   let articlesData = [];
 
-  // Function to scrape a single page
   async function scrapePage(url) {
     await page.goto(url, { timeout: 0 });
-
-    // Extract articles data from the list page
-    let pageData = await page.evaluate(() => {
-      let articles = [];
-      document.querySelectorAll(".card-category-wrapper").forEach((article) => {
-        let link = article.querySelector(".card-category-cover>a")?.href;
-        let img = article.querySelector(".card-category-cover>a>picture>img")?.src;
-        let title = article.querySelector(".card-category-data>a>.card-title>h3")?.textContent.trim();
-        let subTitle = article.querySelector(".card-category-data>div>a")?.textContent.trim();
-        let date = article.querySelector(".card-category-data>div>div>span")?.textContent.trim();
-        let description = article.querySelector(".card-category-data>div>p")?.textContent.trim();
-
-        articles.push({
-          title: title || "No title",
-          subTitle: subTitle || "No sub title",
-          img: img || "No image",
-          link: link || "No link",
-          date: date || "No date",
-          description: description || "No data",
-        });
-      });
-      return articles;
-    }).catch((err) => {
-      console.error("Error in page.evaluate:", err);
-      return [];
-    });
-
-    // Check if pageData is defined and is an array
-    if (Array.isArray(pageData)) {
-      // Add UUIDs in Node.js context
-      pageData = pageData.map((article) => ({
-        id: uuidv4(),
-        ...article,
-      }));
-    } else {
-      pageData = []; // Set to empty array if undefined
+    let originalOffset = 0;
+    await page.click("#CybotCookiebotDialogBodyButtonAccept")
+    await delay(2000);
+    while (true) {
+      await page.evaluate("window.scrollBy(0, document.body.scrollHeight)");
+      let newOffset = await page.evaluate("window.pageYOffset");
+      if (originalOffset === newOffset) {
+        break;
+      }
+      originalOffset = newOffset;
     }
+   
+    // Wait for the "Load More" button to appear
+    let hrefElement = await page.$(
+      "button.button__Button-sc-uwgksy-0.button__ActionButtonStyle-sc-uwgksy-1"
+    );
+
+    let count = 0;
+
+    while (hrefElement) {
+      await delay(1000);
+      count++;
+      console.log("count: ", count);
+      // Wait for the button to be clickable
+      await page.waitForSelector(
+        "button.button__Button-sc-uwgksy-0.button__ActionButtonStyle-sc-uwgksy-1",
+        { visible: true }
+      );
+
+      // Click the button
+      await page.click(
+        "button.button__Button-sc-uwgksy-0.button__ActionButtonStyle-sc-uwgksy-1"
+      );
+
+      // Scroll again after clicking load more
+      originalOffset = 0;
+      while (true) {
+        await page.evaluate("window.scrollBy(0, document.body.scrollHeight)");
+        let newOffset = await page.evaluate("window.pageYOffset");
+        if (originalOffset === newOffset) {
+          break;
+        }
+        originalOffset = newOffset;
+      }
+
+      // Check if the load more button still exists after loading more articles
+      hrefElement = await page.$(
+        "button.button__Button-sc-uwgksy-0.button__ActionButtonStyle-sc-uwgksy-1"
+      );
+
+      if (count > 3) break;
+
+      if (!hrefElement) break;
+    }
+    // Extract articles data from the list page
+    let pageData = await page
+      .evaluate(() => {
+        let articles = [];
+        document.querySelectorAll(".side-cover-card").forEach((article) => {
+          let linkElement = article.querySelector("[class^='card-imagestyles__CardImageWrapper-sc']");
+          let imgElement = article.querySelector(
+            "div:nth-child(1)>a>picture>img"
+          );
+
+          let titleElement = article.querySelector(
+            "div:nth-child(2)>.card-title-link>.card-title>h4"
+          );
+          let categoryElement = article.querySelector(
+            "div:nth-child(2)>div:nth-child(1)>span"
+          );
+
+          let descriptionElement = article.querySelector(
+            "[class^='card-descriptionstyles__CardDescriptionWrapper-sc']>p"
+          );
+
+          let dateElement = article.querySelector(
+            "[class^='card-datestyles__CardDateWrapper-sc']>span"
+          );
+
+          let link = linkElement ? linkElement.getAttribute("href") : null;
+          let img = imgElement ? imgElement.getAttribute("src") : null;
+          let title = titleElement ? titleElement.textContent.trim() : null;
+          let category = categoryElement
+            ? categoryElement.textContent.trim()
+            : null;
+          let date = dateElement ? dateElement.textContent.trim() : null;
+
+          let description = descriptionElement
+            ? descriptionElement.textContent.trim()
+            : null;
+
+          articles.push({
+            title: title || "No title",
+            img: img || "No image",
+            link: link ? `https://www.coindesk.com${link}`  : "No link",
+            category: category ? category : "No category",
+            date: date ? date : "No date",
+            description: description || "No description",
+          });
+        });
+        return articles;
+      })
+      .catch((err) => {
+        console.error("Error in page.evaluate:", err);
+        return [];
+      });
 
     return pageData;
   }
@@ -59,11 +139,15 @@ async function scrapeAllPages() {
   // Log the collected articles data
   console.log("Scraped Articles Data:", articlesData);
 
-  // Save the data to a JSON file
-  fs.writeFileSync('coinDeskParent.json', JSON.stringify(articlesData, null, 2), 'utf-8');
-  console.log("Data has been saved to coinDeskParent.json");
+  // Uncomment these lines to save the data to a JSON file
+  fs.writeFileSync(
+    "coinDesk.json",
+    JSON.stringify(articlesData, null, 2),
+    "utf-8"
+  );
+  console.log("Data has been saved to mitNews.json");
 
-  await browser.close();
+  // await browser.close();
 }
 
 scrapeAllPages();
