@@ -77,36 +77,40 @@ async function scrapeAllPages() {
       .evaluate(() => {
         let articles = [];
         console.log("object");
-        document.querySelectorAll("#recent-news>.front-page--section-content>.front-page--section-content--row>.front-page--section-content--list-item>article").forEach((article) => {
-          let linkElement = article.querySelector(
-            ".front-page--news-article--teaser--cover-image>a"
-          );
-          let imgElement = article.querySelector(
-            ".front-page--news-article--teaser--cover-image>a>img"
-          );
+        document
+          .querySelectorAll(
+            "#recent-news>.front-page--section-content>.front-page--section-content--row>.front-page--section-content--list-item>article"
+          )
+          .forEach((article) => {
+            let linkElement = article.querySelector(
+              ".front-page--news-article--teaser--cover-image>a"
+            );
+            let imgElement = article.querySelector(
+              ".front-page--news-article--teaser--cover-image>a>img"
+            );
 
-          let titleElement = article.querySelector(
-            ".front-page--news-article--teaser--descr>.front-page--news-article--teaser--title>a"
-          );
+            let titleElement = article.querySelector(
+              ".front-page--news-article--teaser--descr>.front-page--news-article--teaser--title>a"
+            );
 
-          let descriptionElement = article.querySelector(
-            ".front-page--news-article--teaser--descr>.front-page--news-article--teaser--dek"
-          );
+            let descriptionElement = article.querySelector(
+              ".front-page--news-article--teaser--descr>.front-page--news-article--teaser--dek"
+            );
 
-          let link = linkElement ? linkElement.getAttribute("href") : null;
-          let img = imgElement ? imgElement.getAttribute("src") : null;
-          let title = titleElement ? titleElement.textContent.trim() : null;
-          let description = descriptionElement
-            ? descriptionElement.textContent.trim()
-            : null;
+            let link = linkElement ? linkElement.getAttribute("href") : null;
+            let img = imgElement ? imgElement.getAttribute("src") : null;
+            let title = titleElement ? titleElement.textContent.trim() : null;
+            let description = descriptionElement
+              ? descriptionElement.textContent.trim()
+              : null;
 
-          articles.push({
-            title: title || "No title",
-            img: img || "No image",
-            link: link ? link : "No link",
-            description: description || "No description",
+            articles.push({
+              title: title || "No title",
+              img: `https://news.mit.edu/${img}` || "No image",
+              link: link ? `https://news.mit.edu/${link}` : "No link",
+              description: description || "No description",
+            });
           });
-        });
         return articles;
       })
       .catch((err) => {
@@ -121,7 +125,7 @@ async function scrapeAllPages() {
   articlesData = await scrapePage(url);
 
   // Log the collected articles data
-  console.log("Scraped Articles Data:", articlesData.length);
+  console.log("Scraped Articles Data:", articlesData);
 
   // Uncomment these lines to save the data to a JSON file
   fs.writeFileSync(

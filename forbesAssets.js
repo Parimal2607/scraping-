@@ -18,13 +18,14 @@ async function scrapeAllPages() {
       "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
   });
   const page = await browser.newPage();
-  const url = "https://u.today/";
+  const url = "https://www.forbes.com/digital-assets/news";
   let articlesData = [];
 
   async function scrapePage(url) {
     await page.goto(url, { timeout: 0 });
     let originalOffset = 0;
     while (true) {
+      console.log("hello")
       await page.evaluate("window.scrollBy(0, document.body.scrollHeight)");
       let newOffset = await page.evaluate("window.pageYOffset");
       if (originalOffset === newOffset) {
@@ -33,9 +34,7 @@ async function scrapeAllPages() {
       originalOffset = newOffset;
     }
     // Wait for the "Load More" button to appear
-    let hrefElement = await page.$(
-      "a[title='Load more items']"
-    );
+    let hrefElement = await page.$("[data-testid='variants']");
 
     let count = 0;
 
@@ -44,13 +43,12 @@ async function scrapeAllPages() {
       count++;
       console.log("count: ", count);
       // Wait for the button to be clickable
-      await page.waitForSelector(
-        "a[title='Load more items']",
-        { visible: true }
-      );
+      await page.waitForSelector("[data-testid='variants']", {
+        visible: true,
+      });
 
       // Click the button
-      await page.click("a[title='Load more items']");
+      await page.click("[data-testid='variants']");
 
       // Scroll again after clicking load more
       originalOffset = 0;
@@ -64,9 +62,7 @@ async function scrapeAllPages() {
       }
 
       // Check if the load more button still exists after loading more articles
-      hrefElement = await page.$(
-        "a[title='Load more items']"
-      );
+      hrefElement = await page.$("[data-testid='variants']");
 
       if (count > 1) break;
 
@@ -76,32 +72,43 @@ async function scrapeAllPages() {
     let pageData = await page
       .evaluate(() => {
         let articles = [];
-        document.querySelectorAll(".news__item").forEach((article) => {
-          console.log('article: ', article);
-          let linkElement = article.querySelector(".news__item-body");
-          let dateElement = article.querySelector(".news__item-head.humble__row > .humble");
-          let imgElement = article.querySelector(".humble__img");
-          let titleElement = article.querySelector(".news__item-title");
-          let tagElement = article.querySelector(".news__item-tags > a");
-          let authorElement = article.querySelector(".news__item-footer > a.humble--author");
-        
-          let link = linkElement ? linkElement.getAttribute("href") : null;
-          let img = imgElement ? imgElement.getAttribute("src") : null;
-          let title = titleElement ? titleElement.textContent.trim() : null;
-          let date = dateElement ? dateElement.textContent.trim() : null;
-          let tag = tagElement ? tagElement.textContent.trim() : null;
-          let author = authorElement ? authorElement.textContent.trim() : null;
-        
-          articles.push({
-            title: title || "No title",
-            img: img || "No image",
-            link: link || "No link",
-            date: date || "No date",
-            tag: tag || "No tag",
-            author: author || "No author",
+        console.log("object");
+        document
+          .querySelectorAll("[class^='StreamFeed_streamCard']")
+          .forEach((article) => {
+            let linkElement = article.querySelector("div>div:nth-child(1)>a");
+            let imgElement = article.querySelector("div>div:nth-child(1)>a>img");
+            let dateElement = article.querySelector(
+              "div>div:nth-child(2)>div:nth-child(1)>span"
+            );
+            let authorElement = article.querySelector(
+              "div>div:nth-child(2)>div:nth-child(2)>a"
+            );
+            let titleElement = article.querySelector("div>div:nth-child(2)>h3>a");
+            let descriptionElement =
+              article.querySelector("div:nth-child(2)>p");
+
+            let link = linkElement ? linkElement.getAttribute("href") : null;
+            let img = imgElement ? imgElement.getAttribute("src") : null;
+            let title = titleElement ? titleElement.textContent.trim() : null;
+            let date = dateElement ? dateElement.textContent.trim() : null;
+            let autore = authorElement
+              ? authorElement.textContent.trim()
+              : null;
+
+            let description = descriptionElement
+              ? descriptionElement.textContent.trim()
+              : null;
+
+            articles.push({
+              title: title || "No title",
+              date: date || "No date",
+              autore: autore || "No autore",
+              img: `https://news.mit.edu/${img}` || "No image",
+              link: link ? `https://news.mit.edu/${link}` : "No link",
+              description: description || "No description",
+            });
           });
-        });
-        
         return articles;
       })
       .catch((err) => {
@@ -119,14 +126,14 @@ async function scrapeAllPages() {
   console.log("Scraped Articles Data:", articlesData);
 
   // Uncomment these lines to save the data to a JSON file
-  // fs.writeFileSync(
-  //   "today.json",
-  //   JSON.stringify(articlesData, null, 2),
-  //   "utf-8"
-  // );
-  // console.log("Data has been saved to mitNews.json");
+  //   fs.writeFileSync(
+  //     "mitNews.json",
+  //     JSON.stringify(articlesData, null, 2),
+  //     "utf-8"
+  //   );
+  console.log("Data has been saved to mitNews.json");
 
-  await browser.close();
+  //   await browser.close();
 }
 
 scrapeAllPages();

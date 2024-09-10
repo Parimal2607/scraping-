@@ -18,7 +18,7 @@ async function scrapeAllPages() {
       "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
   });
   const page = await browser.newPage();
-  const url = "https://u.today/";
+  const url = "https://www.bloomberg.com/latest";
   let articlesData = [];
 
   async function scrapePage(url) {
@@ -34,7 +34,7 @@ async function scrapeAllPages() {
     }
     // Wait for the "Load More" button to appear
     let hrefElement = await page.$(
-      "a[title='Load more items']"
+      "[class^='LineupContentArchive_paginationContainer__'] > button"
     );
 
     let count = 0;
@@ -45,12 +45,12 @@ async function scrapeAllPages() {
       console.log("count: ", count);
       // Wait for the button to be clickable
       await page.waitForSelector(
-        "a[title='Load more items']",
+        "[class^='LineupContentArchive_paginationContainer__'] > button",
         { visible: true }
       );
 
       // Click the button
-      await page.click("a[title='Load more items']");
+      await page.click("[class^='LineupContentArchive_paginationContainer__'] > button");
 
       // Scroll again after clicking load more
       originalOffset = 0;
@@ -65,10 +65,10 @@ async function scrapeAllPages() {
 
       // Check if the load more button still exists after loading more articles
       hrefElement = await page.$(
-        "a[title='Load more items']"
+        "[class^='LineupContentArchive_paginationContainer__'] > button"
       );
 
-      if (count > 1) break;
+      if (count > 2) break;
 
       if (!hrefElement) break;
     }
@@ -76,32 +76,35 @@ async function scrapeAllPages() {
     let pageData = await page
       .evaluate(() => {
         let articles = [];
-        document.querySelectorAll(".news__item").forEach((article) => {
-          console.log('article: ', article);
-          let linkElement = article.querySelector(".news__item-body");
-          let dateElement = article.querySelector(".news__item-head.humble__row > .humble");
-          let imgElement = article.querySelector(".humble__img");
-          let titleElement = article.querySelector(".news__item-title");
-          let tagElement = article.querySelector(".news__item-tags > a");
-          let authorElement = article.querySelector(".news__item-footer > a.humble--author");
-        
-          let link = linkElement ? linkElement.getAttribute("href") : null;
-          let img = imgElement ? imgElement.getAttribute("src") : null;
-          let title = titleElement ? titleElement.textContent.trim() : null;
-          let date = dateElement ? dateElement.textContent.trim() : null;
-          let tag = tagElement ? tagElement.textContent.trim() : null;
-          let author = authorElement ? authorElement.textContent.trim() : null;
-        
-          articles.push({
-            title: title || "No title",
-            img: img || "No image",
-            link: link || "No link",
-            date: date || "No date",
-            tag: tag || "No tag",
-            author: author || "No author",
+        console.log("object");
+        document
+          .querySelectorAll("[class^='LineupContentArchive_itemContainer__']")
+          .forEach((article) => {
+            let linkElement = article.querySelector(
+              "[class^='LineupContentArchive_itemTextContainer__']>a"
+            );
+            let imgElement = article.querySelector(
+              "a>section>figure>picture>img"
+            );
+
+            let titleElement = article.querySelector(
+              "[class^='LineupContentArchive_itemTextContainer__']>a>div>span"
+            );
+
+            let timeElement = article.querySelector("time");
+
+            let link = linkElement ? linkElement.getAttribute("href") : null;
+            let img = imgElement ? imgElement.getAttribute("src") : null;
+            let title = titleElement ? titleElement.textContent.trim() : null;
+            let time = timeElement ? timeElement.textContent.trim() : null;
+
+            articles.push({
+              title: title || "No title",
+              img: img || "No image",
+              link: link ? `https://www.bloomberg.com/${link}` : "No link",
+              time: time || "No time",
+            });
           });
-        });
-        
         return articles;
       })
       .catch((err) => {
@@ -120,11 +123,11 @@ async function scrapeAllPages() {
 
   // Uncomment these lines to save the data to a JSON file
   // fs.writeFileSync(
-  //   "today.json",
+  //   "bloomberg.json",
   //   JSON.stringify(articlesData, null, 2),
   //   "utf-8"
   // );
-  // console.log("Data has been saved to mitNews.json");
+  console.log("Data has been saved to mitNews.json");
 
   await browser.close();
 }
