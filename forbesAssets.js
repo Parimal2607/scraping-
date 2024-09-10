@@ -23,56 +23,28 @@ async function scrapeAllPages() {
 
   async function scrapePage(url) {
     await page.goto(url, { timeout: 0 });
+  
+    // Ensure the page has loaded by waiting for a key element
+    await page.waitForSelector("[class^='StreamFeed_streamCard']", { timeout: 10000 });
+  
+    // Scroll to load more articles
     let originalOffset = 0;
     while (true) {
-      console.log("hello")
-      await page.evaluate("window.scrollBy(0, document.body.scrollHeight)");
-      let newOffset = await page.evaluate("window.pageYOffset");
+      console.log("Scrolling down...");
+      await page.evaluate(() => window.scrollBy(0, document.body.scrollHeight));
+      let newOffset = await page.evaluate(() => window.pageYOffset);
       if (originalOffset === newOffset) {
+        console.log("Reached bottom of the page.");
         break;
       }
       originalOffset = newOffset;
+      await delay(1000); // Give time for new content to load
     }
-    // Wait for the "Load More" button to appear
-    let hrefElement = await page.$("[data-testid='variants']");
-
-    let count = 0;
-
-    while (hrefElement) {
-      await delay(1000);
-      count++;
-      console.log("count: ", count);
-      // Wait for the button to be clickable
-      await page.waitForSelector("[data-testid='variants']", {
-        visible: true,
-      });
-
-      // Click the button
-      await page.click("[data-testid='variants']");
-
-      // Scroll again after clicking load more
-      originalOffset = 0;
-      while (true) {
-        await page.evaluate("window.scrollBy(0, document.body.scrollHeight)");
-        let newOffset = await page.evaluate("window.pageYOffset");
-        if (originalOffset === newOffset) {
-          break;
-        }
-        originalOffset = newOffset;
-      }
-
-      // Check if the load more button still exists after loading more articles
-      hrefElement = await page.$("[data-testid='variants']");
-
-      if (count > 1) break;
-
-      if (!hrefElement) break;
-    }
+  
     // Extract articles data from the list page
     let pageData = await page
       .evaluate(() => {
         let articles = [];
-        console.log("object");
         document
           .querySelectorAll("[class^='StreamFeed_streamCard']")
           .forEach((article) => {
@@ -82,30 +54,26 @@ async function scrapeAllPages() {
               "div>div:nth-child(2)>div:nth-child(1)>span"
             );
             let authorElement = article.querySelector(
-              "div>div:nth-child(2)>div:nth-child(2)>a"
+              "div>div:nth-child(2)>div>a"
             );
             let titleElement = article.querySelector("div>div:nth-child(2)>h3>a");
-            let descriptionElement =
-              article.querySelector("div:nth-child(2)>p");
-
+            let descriptionElement = article.querySelector("div:nth-child(2)>p");
+  
             let link = linkElement ? linkElement.getAttribute("href") : null;
             let img = imgElement ? imgElement.getAttribute("src") : null;
             let title = titleElement ? titleElement.textContent.trim() : null;
             let date = dateElement ? dateElement.textContent.trim() : null;
-            let autore = authorElement
-              ? authorElement.textContent.trim()
-              : null;
-
+            let autore = authorElement ? authorElement.textContent.trim() : null;
             let description = descriptionElement
               ? descriptionElement.textContent.trim()
               : null;
-
+  
             articles.push({
               title: title || "No title",
               date: date || "No date",
-              autore: autore || "No autore",
-              img: `https://news.mit.edu/${img}` || "No image",
-              link: link ? `https://news.mit.edu/${link}` : "No link",
+              autore: autore || "No author",
+              img: img || "No image",
+              link: link || "No link",
               description: description || "No description",
             });
           });
@@ -115,9 +83,10 @@ async function scrapeAllPages() {
         console.error("Error in page.evaluate:", err);
         return [];
       });
-
+  
     return pageData;
   }
+  
 
   // Scrape the given URL
   articlesData = await scrapePage(url);
@@ -126,12 +95,12 @@ async function scrapeAllPages() {
   console.log("Scraped Articles Data:", articlesData);
 
   // Uncomment these lines to save the data to a JSON file
-  //   fs.writeFileSync(
-  //     "mitNews.json",
-  //     JSON.stringify(articlesData, null, 2),
-  //     "utf-8"
-  //   );
-  console.log("Data has been saved to mitNews.json");
+    fs.writeFileSync(
+      "forbesAssets.json",
+      JSON.stringify(articlesData, null, 2),
+      "utf-8"
+    );
+  console.log("Data has been saved to forbesAssets.json");
 
   //   await browser.close();
 }
