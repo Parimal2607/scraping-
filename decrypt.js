@@ -23,15 +23,17 @@ async function scrapeAllPages() {
 
   async function scrapePage(url) {
     await page.goto(url, { timeout: 0 });
-    // let originalOffset = 0;
-    // while (true) {
-    //   await page.evaluate("window.scrollBy(0, document.body.scrollHeight)");
-    //   let newOffset = await page.evaluate("window.pageYOffset");
-    //   if (originalOffset === newOffset) {
-    //     break;
-    //   }
-    //   originalOffset = newOffset;
-    // }
+    let originalOffset = 0;
+    await page.click("#CybotCookiebotDialogBodyButtonAccept")
+    while (true) {
+      await page.evaluate("window.scrollBy(0, document.body.scrollHeight)");
+      let newOffset = await page.evaluate("window.pageYOffset");
+      if (originalOffset === newOffset) {
+        break;
+      }
+      originalOffset = newOffset;
+    }
+
     // // Wait for the "Load More" button to appear
     // let hrefElement = await page.$(".h-[48px].flex.justify-end>button");
 
@@ -78,7 +80,7 @@ async function scrapeAllPages() {
         let articles = [];
         console.log("object");
         document
-          .querySelectorAll(".max-w-[764px]>article")
+          .querySelectorAll("#__next > div > div > div > div > main > div > div:nth-child(6) > div > article > article:nth-child(1)")
           .forEach((article) => {
             let linkElement = article.querySelector(".grow>h3>a");
             let imgElement = article.querySelector(".linkbox>img");
